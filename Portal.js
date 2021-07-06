@@ -6,11 +6,15 @@ const msg_open  = "```\n ```*The portal opens...*";
 const msg_close = "*The portal closes...*```\n ```";
 const msg_closeBot = msg_close + "The bot is shutting down. Apologies for any inconvenience.";
 
-const msg_requestSent     = "Portal request successfully sent to {0}!\nAwaiting response...";
+const msg_requestSent     = "Portal request successfully sent to {0}!";
+const msg_awaiting        = "Awaiting response..."
 const msg_requestError    = "Portal request could not be sent to {0}!";
 const msg_incomingRequest = "Incoming portal request from {0}!\nDo you accept?";
-const msg_requestAccepted = "Request accepted!";
-const msg_requestDenied   = "Request denied.";
+
+const msg_requestAccepted     = "Request accepted!";
+const msg_requestDenied       = "Request denied.";
+const msg_requestFromAccepted = "Request from {0} accepted!";
+const msg_requestFromDenied   = "Request from {0} denied.";
 
 const msg_quotesNeeded   = "Quote text (prefix a line with `> `) to send through the portal.";
 const msg_noQuotesNeeded = "Because this is direct through DMs, you do not need to prefix your messages.";
@@ -24,42 +28,53 @@ module.exports = class Portal {
 	get channel() { return this.#channel; }
 	#victimChannel;
 	get victimChannel() { return this.#victimChannel; }
-	#direct;
 
+	#anon;
+	#direct;
 	#requestMsg;
 
-	constructor(sender, victim, channel) {
+	constructor(sender, victim, channel, anon) {
 		this.#sender = sender;
 		this.#victim = victim;
 		this.#channel = channel;
+		this.#anon = anon;
 		this.#direct = channel.type == 'dm';
 	}
 
 	static async create(sender, victim, channel, anon = false) {
-		let portal = new Portal(sender, victim, channel);
+		let portal = new Portal(sender, victim, channel, anon);
 
 		portal.#victimChannel = await victim.createDM();
 
 		let success = portal.#victim && portal.#channel && portal.#victimChannel;
 		if (success) {
-			portal.#requestMsg = await portal.#channel.send(msg_requestSent.format(portal.#victim.username));
+			portal.#requestMsg = await portal.#channel.send(
+				`${msg_requestSent.format(portal.#victim.username)}\n` +
+				msg_awaiting
+			);
 		} else {
 			portal.#channel.send(msg_requestError.format(portal.#victim.username));
 		}
 
-		let yesBtn = new disbut.MessageButton()
+		let buttons = new disbut.MessageActionRow().addComponents([
+			new disbut.MessageButton()
 			.setStyle('green')
 			.setLabel("Yes")
-			.setID(`${victim.id}-yes`);
+			.setID(`${victim.id}-yes`),
 
-		let noBtn = new disbut.MessageButton()
+			new disbut.MessageButton()
 			.setStyle('red')
 			.setLabel("No")
-			.setID(`${victim.id}-no`);
+			.setID(`${victim.id}-no`),
+		]);
 
-		let buttons = new disbut.MessageActionRow().addComponents([ yesBtn, noBtn ]);
-
-		await portal.#victim.send(msg_incomingRequest.format(anon ? "anonymous" : sender.username), buttons);
+		await portal.#victim.send(
+			msg_incomingRequest.format(portal.#anon
+				? "anonymous"
+				: portal.#sender.username
+			),
+			buttons
+		);
 
 		return portal;
 	}
@@ -83,8 +98,10 @@ module.exports = class Portal {
 		btn.message.delete();
 
 		if (btn.id.match(/.*-yes$/)) {
-			this.#victim.send(msg_requestAccepted);
-			this.#requestMsg.edit(`${msg_requestAccepted}\n` +
+			this.#victim.send(msg_requestFromAccepted.format(this.#anon ? "anonymous" : this.#sender.username));
+			this.#requestMsg.edit(
+				`${msg_requestSent.format(this.#victim.username)}\n` +
+				`${msg_requestAccepted}\n` +
 				(this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded)
 			);
 
@@ -94,8 +111,11 @@ module.exports = class Portal {
 			return true;
 		}
 		if (btn.id.match(/.*-no$/)) {
-			this.#victim.send(msg_requestDenied);
-			this.#channel.send(msg_requestDenied);
+			this.#victim.send(msg_requestFromDenied.format(this.#anon ? "anonymous" : this.#sender.username));
+			this.#requestMsg.edit(
+				`${msg_requestSent.format(this.#victim.username)}\n` +
+				msg_requestDenied
+			);
 			return false;
 		}
 

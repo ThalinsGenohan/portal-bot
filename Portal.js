@@ -94,7 +94,7 @@ module.exports = class Portal {
 		}
 	}
 
-	handleEdit(clientID, oldMsg, newMsg) {
+	handleEdit(oldMsg, newMsg) {
 		let m = oldMsg.content;
 		let n = newMsg.content;
 		let channel;
@@ -110,13 +110,13 @@ module.exports = class Portal {
 
 		let messages = channel.messages.cache.map(m => m);
 		for (const message of messages) {
-			if (m == message.content && clientID == message.author.id) {
+			if (m == message.content && Bot.client.user.id == message.author.id) {
 				message.edit(newMsg.content);
 			}
 		}
 	}
 
-	handleDelete(clientID, msg) {
+	handleDelete(msg) {
 		let m = msg.content;
 
 		let channel;
@@ -131,7 +131,7 @@ module.exports = class Portal {
 
 		let messages = channel.messages.cache.map(m => m);
 		for (const message of messages) {
-			if (m == message.content && clientID == message.author.id) {
+			if (m == message.content && Bot.client.user.id == message.author.id) {
 				message.delete();
 			}
 		}

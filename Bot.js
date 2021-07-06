@@ -82,7 +82,7 @@ module.exports = class Bot {
 
 			const portal = this.#portals[p];
 			if (oldMsg.channel.id == portal.channel.id || oldMsg.channel.id == portal.victimChannel.id) {
-				portal.handleEdit(Bot.client.user.id, oldMsg, newMsg);
+				portal.handleEdit(oldMsg, newMsg);
 			}
 		}
 	}
@@ -95,7 +95,7 @@ module.exports = class Bot {
 
 			const portal = this.#portals[p];
 			if (msg.channel.id == portal.channel.id || msg.channel.id == portal.victimChannel.id) {
-				portal.handleDelete(Bot.client.user.id, msg);
+				portal.handleDelete(msg);
 			}
 		}
 	}

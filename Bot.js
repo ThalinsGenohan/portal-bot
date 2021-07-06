@@ -22,6 +22,8 @@ module.exports = class Bot {
 			}
 		});
 
+		process.on('SIGINT', bot.shutdown.bind(bot));
+
 		Bot.client.on('message', bot.handleMessage.bind(bot));
 		Bot.client.on('messageUpdate', bot.handleEdit.bind(bot));
 		Bot.client.on('messageDelete', bot.handleDelete.bind(bot));
@@ -31,6 +33,19 @@ module.exports = class Bot {
 		Bot.client.login(token);
 
 		return bot;
+	}
+
+	async shutdown() {
+		for (const p in this.#portals) {
+			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+			const portal = this.#portals[p];
+
+			// TODO: Better portal close message for bot shutdown
+			await portal.destroy();
+		}
+
+		Bot.client.destroy();
 	}
 
 	async handleMessage(msg) {

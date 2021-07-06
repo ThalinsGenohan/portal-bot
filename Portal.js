@@ -39,9 +39,9 @@ module.exports = class Portal {
 		return portal;
 	}
 
-	destroy() {
-		this.#victim.send("*The portal closes...*");
-		this.#channel.send("*The portal closes...*");
+	async destroy() {
+		await this.#victim.send("*The portal closes...*");
+		await this.#channel.send("*The portal closes...*");
 
 		this.#victim = undefined;
 		this.#channel = undefined;

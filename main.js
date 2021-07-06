@@ -1,9 +1,5 @@
 const Bot = require("./Bot");
 
-process.on('SIGINT', () => {
-	Bot.client.destroy();
-});
-
 main();
 
 async function main() {

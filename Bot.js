@@ -60,6 +60,24 @@ module.exports = class Bot {
 			msg.channel.send(helpMessage);
 		}
 
+		if (command == "status") {
+			let sent = await msg.channel.send("Checking status...");
+
+			let embed = new Discord.MessageEmbed()
+				.setTitle("Status")
+				.setColor(0x000000)
+				.setTimestamp(Date.now())
+				.setAuthor("Hoopa Bot", "", "https://github.com/ThalinsGenohan/portal-bot")
+				.addFields([
+					{ name: "Heartbeat", value: `${Bot.client.ws.ping}ms`, inline: true },
+					{ name: "Latency", value: `${sent.createdTimestamp - msg.createdTimestamp}ms`, inline: true },
+					{ name: "Active Portals", value: Object.keys(this.#portals).length, inline: true },
+				])
+				.setFooter("Created by Thalins#0502", Bot.client.user.displayAvatarURL());
+
+			sent.edit(embed);
+		}
+
 		if (command == "stop") {
 			Bot.client.destroy();
 			process.exit();

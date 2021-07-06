@@ -2,7 +2,21 @@ const disbut = require('discord-buttons');
 
 let Bot = require("./Bot");
 
+const msg_open  = "```\n ```*The portal opens...*";
+const msg_close = "*The portal closes...*```\n ```";
+
+const msg_requestSent     = "Portal request successfully sent to {0}!\nAwaiting response...";
+const msg_requestError    = "Portal request could not be sent to {0}!";
+const msg_incomingRequest = "Incoming portal request from {0}!\nDo you accept?";
+const msg_requestAccepted = "Request accepted!";
+const msg_requestDenied   = "Request denied.";
+
+const msg_quotesNeeded   = "Quote text (prefix a line with `> `) to send through the portal.";
+const msg_noQuotesNeeded = "Because this is direct through DMs, you do not need to prefix your messages.";
+
 module.exports = class Portal {
+	#sender;
+	get sender() { return this.#sender; }
 	#victim;
 	get victim() { return this.#victim; }
 	#channel;
@@ -11,36 +25,25 @@ module.exports = class Portal {
 	get victimChannel() { return this.#victimChannel; }
 	#direct;
 
-	constructor(victim, channel) {
+	#requestMsg;
+
+	constructor(sender, victim, channel) {
+		this.#sender = sender;
 		this.#victim = victim;
 		this.#channel = channel;
 		this.#direct = channel.type == 'dm';
 	}
 
-	static async create(victim, channel) {
-		let portal = new Portal(victim, channel);
+	static async create(sender, victim, channel, anon = false) {
+		let portal = new Portal(sender, victim, channel);
 
 		portal.#victimChannel = await victim.createDM();
 
 		let success = portal.#victim && portal.#channel && portal.#victimChannel;
-		let reply = "";
-		if (!success) {
-			reply = "ERROR!";
-		} else {
-			reply = "Portal successfully opened!\n";
-			if (portal.#direct) {
-				reply += "Because this is direct through DMs, you do not need to prefix your messages.\n";
-			} else {
-				reply += "Quote text (prefix a line with `> `) to send to the portal victim.\n"
-			}
-		}
-		portal.#channel.send(reply + "```\n" +
-						 `Victim:  ${portal.#victim?.tag}\n` +
-						 `Channel: ${portal.#channel?.name}\n` +
-						 "```");
-
 		if (success) {
-			portal.#victim.send("*A portal opens...*");
+			portal.#requestMsg = await portal.#channel.send(msg_requestSent.format(portal.#victim.username));
+		} else {
+			portal.#channel.send(msg_requestError.format(portal.#victim.username));
 		}
 
 		let yesBtn = new disbut.MessageButton()
@@ -55,16 +58,14 @@ module.exports = class Portal {
 
 		let buttons = new disbut.MessageActionRow().addComponents([ yesBtn, noBtn ]);
 
-		await portal.#victim.send("Test buttons", buttons);
-
-		Bot.client.on('clickButton', portal.handleButton.bind(portal));
+		await portal.#victim.send(msg_incomingRequest.format(anon ? "anonymous" : sender.username), buttons);
 
 		return portal;
 	}
 
 	async destroy() {
-		await this.#victim.send("*The portal closes...*");
-		await this.#channel.send("*The portal closes...*");
+		await this.#victim.send(msg_close);
+		await this.#channel.send(msg_close);
 
 		this.#victim = undefined;
 		this.#channel = undefined;
@@ -72,13 +73,28 @@ module.exports = class Portal {
 	}
 
 	async handleButton(btn) {
-		console.log(btn);
-		let id = btn.id;
-		if (id == `${this.#victim.id}-yes`) {
-			await this.#channel.send("Yes");
-		} else if (id == `${this.#victim.id}-no`) {
-			await this.#channel.send("No");
+		btn.reply.defer();
+		btn.message.delete();
+
+		if (btn.id.match(/.*-yes$/)) {
+			this.#victim.send(msg_requestAccepted);
+			this.#requestMsg.edit(`${msg_requestAccepted}\n` +
+				(this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded)
+			);
+
+			this.#victim.send(msg_open);
+			this.#channel.send(msg_open);
+
+			return true;
 		}
+		if (btn.id.match(/.*-no$/)) {
+			this.#victim.send(msg_requestDenied);
+			this.#channel.send(msg_requestDenied);
+			return false;
+		}
+
+		console.error("ERROR: Unknown button clicked!");
+		return false;
 	}
 
 	handleMessage(msg) {

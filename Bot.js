@@ -6,6 +6,7 @@ module.exports = class Bot {
 	static #client = new Discord.Client();
 	static get client() { return Bot.#client; }
 	#portals = {};
+	#pendingPortals = {};
 
 	constructor() {
 	}
@@ -14,7 +15,7 @@ module.exports = class Bot {
 		let bot = new Bot();
 
 		Bot.client.on('ready', async () => {
-			console.log(`Successfully logged in as ${Bot.client.user.tag}`);
+			console.info(`Successfully logged in as ${Bot.client.user.tag}`);
 
 			let guilds = Bot.client.guilds.cache.map(g => g);
 			for (const guild of guilds) {
@@ -27,8 +28,9 @@ module.exports = class Bot {
 		Bot.client.on('message', bot.handleMessage.bind(bot));
 		Bot.client.on('messageUpdate', bot.handleEdit.bind(bot));
 		Bot.client.on('messageDelete', bot.handleDelete.bind(bot));
+		Bot.client.on('clickButton', bot.handleButton.bind(bot));
 
-		console.log("Logging in...");
+		console.info("Logging in...");
 		let token = fs.readFileSync("./token.txt", { encoding: 'utf-8' }).trim();
 		Bot.client.login(token);
 
@@ -67,7 +69,7 @@ module.exports = class Bot {
 	async handleCommand(msg) {
 		if (msg.author.bot) { return; }
 
-		console.log(msg.author.tag + " in " + msg.channel.name + ": " + msg.content);
+		console.info(msg.author.tag + " in " + msg.channel.name + ": " + msg.content);
 
 		const args = msg.content.slice(1).trim().split(' ');
 
@@ -100,6 +102,26 @@ module.exports = class Bot {
 		}
 	}
 
+	async handleButton(btn) {
+		for (const p in this.#pendingPortals) {
+			if (!Object.hasOwnProperty.call(this.#pendingPortals, p)) { continue; }
+
+			const portal = this.#pendingPortals[p];
+			if (btn.clicker.id != portal.victim.id) { continue; }
+
+			let status = "denied";
+			if (await portal.handleButton(btn)) {
+				this.#portals[p] = portal;
+				status = "accepted";
+			}
+			delete this.#pendingPortals[p];
+
+			console.info(`Portal request ${status}\n` +
+			            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+			            `  Portal count:  ${Object.keys(this.#portals).length}\n`);
+		}
+	}
+
 	#commands = {
 		help: async function(msg) {
 			let helpMessage = 'Usage: `!bind <"victim" ID>`\n' +
@@ -116,9 +138,10 @@ module.exports = class Bot {
 				.setTimestamp(Date.now())
 				.setAuthor("Hoopa Bot", "", "https://github.com/ThalinsGenohan/portal-bot")
 				.addFields([
-					{ name: "Heartbeat", value: `${Bot.client.ws.ping}ms`, inline: true },
-					{ name: "Latency", value: `${sent.createdTimestamp - msg.createdTimestamp}ms`, inline: true },
-					{ name: "Active Portals", value: Object.keys(this.#portals).length, inline: true },
+					{ name: "Heartbeat", value: `${Bot.client.ws.ping}ms` },
+					{ name: "Latency", value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },
+					{ name: "Portal Requests", value: Object.keys(this.#pendingPortals).length },
+					{ name: "Active Portals", value: Object.keys(this.#portals).length },
 				])
 				.setFooter("Created by Thalins#0502", Bot.client.user.displayAvatarURL());
 
@@ -135,6 +158,11 @@ module.exports = class Bot {
 				msg.reply("there's already a portal open here!");
 				return;
 			}
+			if (this.#pendingPortals[msg.channel.id]) {
+				msg.reply("there's already a portal request open here!");
+				return;
+			}
+
 			let victim = Bot.client.users.cache.find(u =>
 				u.username.toLowerCase() == args[0].toLowerCase() ||
 				u.tag.toLowerCase() == args[0].toLowerCase() ||
@@ -152,13 +180,14 @@ module.exports = class Bot {
 				return;
 			}
 
-			let portal = await Portal.create(victim, msg.channel);
+			let portal = await Portal.create(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true');
 			if (!portal) {
 				return;
 			} else {
-				this.#portals[msg.channel.id] = portal;
-				console.log(`New portal opened.\n` +
-				            `  Portal count: ${Object.keys(this.#portals).length}`);
+				this.#pendingPortals[msg.channel.id] = portal;
+				console.info(`New portal request opened\n` +
+				            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+				            `  Portal count:  ${Object.keys(this.#portals).length}\n`);
 			}
 		},
 
@@ -166,8 +195,9 @@ module.exports = class Bot {
 			if (this.#portals[msg.channel.id]) {
 				await this.#portals[msg.channel.id].destroy();
 				delete this.#portals[msg.channel.id];
-				console.log(`Portal closed.\n` +
-				            `  Portal count: ${Object.keys(this.#portals).length}`);
+				console.info(`Portal closed.\n` +
+				            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+				            `  Portal count: ${Object.keys(this.#portals).length}\n`);
 			} else {
 				msg.reply("there is no portal bound to this channel!");
 			}

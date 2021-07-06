@@ -14,6 +14,5 @@ if (!String.prototype.format) {
 main();
 
 async function main() {
-	console.log("Creating bot...");
 	let bot = Bot.create();
 }

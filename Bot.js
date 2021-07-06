@@ -195,13 +195,23 @@ module.exports = class Bot {
 		},
 
 		unbind: async function(msg) {
-			if (this.#portals[msg.channel.id]) {
-				await this.#portals[msg.channel.id].destroy();
-				delete this.#portals[msg.channel.id];
-				console.info(`Portal closed.\n` +
-				            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
-				            `  Portal count: ${Object.keys(this.#portals).length}\n`);
-			} else {
+			for (const p in this.#portals) {
+				if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+				const portal = this.#portals[p];
+
+				if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
+					await portal.destroy();
+					delete this.#portals[p];
+
+					console.info(
+						`Portal closed.\n` +
+						`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+						`  Portal count: ${Object.keys(this.#portals).length}\n`
+					);
+
+					return;
+				}
 				msg.reply("there is no portal bound to this channel!");
 			}
 		},

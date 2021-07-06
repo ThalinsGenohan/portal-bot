@@ -2,6 +2,8 @@ const fs = require("fs");
 const Discord = require('discord.js');
 let Portal;
 
+const config = require("./config.json");
+
 module.exports = class Bot {
 	static #client = new Discord.Client();
 	static get client() { return Bot.#client; }
@@ -31,8 +33,7 @@ module.exports = class Bot {
 		Bot.client.on('clickButton', bot.handleButton.bind(bot));
 
 		console.info("Logging in...");
-		let token = fs.readFileSync("./token.txt", { encoding: 'utf-8' }).trim();
-		Bot.client.login(token);
+		Bot.client.login(config.token);
 
 		require('discord-buttons')(Bot.client);
 
@@ -151,7 +152,9 @@ module.exports = class Bot {
 			sent.edit("", embed);
 		},
 
-		stop: async function() {
+		stop: async function(msg) {
+			if (msg.author.id != config.owner) { return; }
+
 			Bot.client.destroy();
 			process.exit();
 		},

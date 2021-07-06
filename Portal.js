@@ -4,6 +4,7 @@ let Bot = require("./Bot");
 
 const msg_open  = "```\n ```*The portal opens...*";
 const msg_close = "*The portal closes...*```\n ```";
+const msg_closeBot = msg_close + "The bot is shutting down. Apologies for any inconvenience.";
 
 const msg_requestSent     = "Portal request successfully sent to {0}!\nAwaiting response...";
 const msg_requestError    = "Portal request could not be sent to {0}!";
@@ -63,13 +64,18 @@ module.exports = class Portal {
 		return portal;
 	}
 
-	async destroy() {
-		await this.#victim.send(msg_close);
-		await this.#channel.send(msg_close);
+	async destroy(shutdown = false) {
+		let msg = shutdown ? msg_closeBot : msg_close;
 
+		await this.#victim.send(msg);
+		await this.#channel.send(msg);
+
+		this.#sender = undefined;
 		this.#victim = undefined;
 		this.#channel = undefined;
 		this.#victimChannel = undefined;
+		this.#direct = undefined;
+		this.#requestMsg = undefined;
 	}
 
 	async handleButton(btn) {

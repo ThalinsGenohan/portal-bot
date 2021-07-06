@@ -44,10 +44,7 @@ module.exports = class Bot {
 		for (const p in this.#portals) {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
-			const portal = this.#portals[p];
-
-			// TODO: Better portal close message for bot shutdown
-			await portal.destroy();
+			await this.#portals[p].destroy(true);
 		}
 
 		Bot.client.destroy();

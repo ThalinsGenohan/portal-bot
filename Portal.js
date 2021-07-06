@@ -1,6 +1,6 @@
 const disbut = require('discord-buttons');
 
-let Bot;
+let Bot = require("./Bot");
 
 module.exports = class Portal {
 	#victim;
@@ -138,5 +138,3 @@ module.exports = class Portal {
 
 	}
 }
-
-Bot = require("./Bot");

@@ -1,6 +1,6 @@
 const fs = require("fs");
 const Discord = require('discord.js');
-const Portal = require('./Portal');
+let Portal;
 
 module.exports = class Bot {
 	static #client = new Discord.Client();
@@ -174,3 +174,5 @@ module.exports = class Bot {
 		},
 	};
 }
+
+Portal = require("./Portal");

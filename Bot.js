@@ -32,6 +32,8 @@ module.exports = class Bot {
 		let token = fs.readFileSync("./token.txt", { encoding: 'utf-8' }).trim();
 		Bot.client.login(token);
 
+		require('discord-buttons')(Bot.client);
+
 		return bot;
 	}
 
@@ -46,6 +48,7 @@ module.exports = class Bot {
 		}
 
 		Bot.client.destroy();
+		process.exit();
 	}
 
 	async handleMessage(msg) {

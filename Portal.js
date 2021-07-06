@@ -1,3 +1,7 @@
+const disbut = require('discord-buttons');
+
+let Bot;
+
 module.exports = class Portal {
 	#victim;
 	get victim() { return this.#victim; }
@@ -19,7 +23,7 @@ module.exports = class Portal {
 		portal.#victimChannel = await victim.createDM();
 
 		let success = portal.#victim && portal.#channel && portal.#victimChannel;
-		let reply ="";
+		let reply = "";
 		if (!success) {
 			reply = "ERROR!";
 		} else {
@@ -35,7 +39,26 @@ module.exports = class Portal {
 						 `Channel: ${portal.#channel?.name}\n` +
 						 "```");
 
-		if (success) { portal.#victim.send("*A portal opens...*"); }
+		if (success) {
+			portal.#victim.send("*A portal opens...*");
+		}
+
+		let yesBtn = new disbut.MessageButton()
+			.setStyle('green')
+			.setLabel("Yes")
+			.setID(`${victim.id}-yes`);
+
+		let noBtn = new disbut.MessageButton()
+			.setStyle('red')
+			.setLabel("No")
+			.setID(`${victim.id}-no`);
+
+		let buttons = new disbut.MessageActionRow().addComponents([ yesBtn, noBtn ]);
+
+		await portal.#victim.send("Test buttons", buttons);
+
+		Bot.client.on('clickButton', portal.handleButton.bind(portal));
+
 		return portal;
 	}
 
@@ -46,6 +69,16 @@ module.exports = class Portal {
 		this.#victim = undefined;
 		this.#channel = undefined;
 		this.#victimChannel = undefined;
+	}
+
+	async handleButton(btn) {
+		console.log(btn);
+		let id = btn.id;
+		if (id == `${this.#victim.id}-yes`) {
+			await this.#channel.send("Yes");
+		} else if (id == `${this.#victim.id}-no`) {
+			await this.#channel.send("No");
+		}
 	}
 
 	handleMessage(msg) {
@@ -105,3 +138,5 @@ module.exports = class Portal {
 
 	}
 }
+
+Bot = require("./Bot");

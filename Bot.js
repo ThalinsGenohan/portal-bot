@@ -72,8 +72,11 @@ module.exports = class Bot {
 		console.info(msg.author.tag + " in " + msg.channel.name + ": " + msg.content);
 
 		const args = msg.content.slice(1).trim().split(' ');
+		const comm = args.shift().toLowerCase();
 
-		this.#commands[args.shift().toLowerCase()].bind(this)(msg, args);
+		if (this.#commands[comm]) {
+			this.#commands[comm].bind(this)(msg, args);
+		}
 	}
 
 	async handleEdit(oldMsg, newMsg) {

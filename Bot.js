@@ -4,6 +4,12 @@ let Portal;
 
 const config = require("./config.json");
 
+const msg_help = "**Usage:**\n" +
+	"`!bind <\"victim\"> [anonymous]`: Request a portal connection\n" +
+	"    `\"victim\"`: The user that is partway through the portal. Username, ID, or ping may be used for this.\n" +
+	"    `anonymous`: Optionally type `true` here to make your portal request anonymous.\n" +
+	"`!unbind`: End a portal connection";
+
 module.exports = class Bot {
 	static #client = new Discord.Client();
 	static get client() { return Bot.#client; }
@@ -125,9 +131,7 @@ module.exports = class Bot {
 
 	#commands = {
 		help: async function(msg) {
-			let helpMessage = 'Usage: `!bind <"victim" ID>`\n' +
-			'`"victim" ID`: The ID of the user that is partway through the portal';
-			msg.channel.send(helpMessage);
+			msg.channel.send(msg_help);
 		},
 
 		status: async function(msg) {

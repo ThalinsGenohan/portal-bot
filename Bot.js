@@ -5,10 +5,10 @@ let Portal;
 const config = require("./config.json");
 
 const msg_help = "**Usage:**\n" +
-	"`!bind <\"victim\"> [anonymous]`: Request a portal connection\n" +
+	"`" + config.prefix + "bind <\"victim\"> [anonymous]`: Request a portal connection\n" +
 	"    `\"victim\"`: The user that is partway through the portal. Username, ID, or ping may be used for this.\n" +
 	"    `anonymous`: Optionally type `true` here to make your portal request anonymous.\n" +
-	"`!unbind`: End a portal connection";
+	"`" + config.prefix + "unbind`: End a portal connection";
 
 module.exports = class Bot {
 	static #client = new Discord.Client();
@@ -60,7 +60,7 @@ module.exports = class Bot {
 	async handleMessage(msg) {
 		if (msg.author.bot) { return; }
 
-		if (msg.content[0] == '!') { this.handleCommand(msg); return; }
+		if (msg.content.startsWith(config.prefix)) { this.handleCommand(msg); return; }
 
 		for (const p in this.#portals) {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
@@ -75,7 +75,7 @@ module.exports = class Bot {
 
 		console.info(msg.author.tag + " in " + msg.channel.name + ": " + msg.content);
 
-		const args = msg.content.slice(1).trim().split(' ');
+		const args = msg.content.slice(config.prefix.length).trim().split(' ');
 		const comm = args.shift().toLowerCase();
 
 		if (this.#commands[comm]) {
@@ -141,7 +141,7 @@ module.exports = class Bot {
 				.setTitle("Status")
 				.setColor(0x000000)
 				.setTimestamp(Date.now())
-				.setAuthor("Hoopa Bot", "", "https://github.com/ThalinsGenohan/portal-bot")
+				.setAuthor(Bot.client.user.username, "", "https://github.com/ThalinsGenohan/portal-bot")
 				.addFields([
 					{ name: "Heartbeat", value: `${Bot.client.ws.ping}ms` },
 					{ name: "Latency", value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },

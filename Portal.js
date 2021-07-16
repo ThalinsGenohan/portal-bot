@@ -106,7 +106,6 @@ module.exports = class Portal {
 
 	async handleButton(btn) {
 		btn.reply.defer();
-		console.log(this.#dmRequestMsg);
 
 		let status = 'error';
 		if (btn.id.match(/.*-yes$/)) {

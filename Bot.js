@@ -139,7 +139,6 @@ module.exports = class Bot {
 				}
 			}
 			delete this.#pendingPortals[p];
-			console.log("a");
 
 			console.info(
 				`Portal request ${status}\n` +

@@ -114,18 +114,38 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#pendingPortals, p)) { continue; }
 
 			const portal = this.#pendingPortals[p];
-			if (btn.clicker.id != portal.victim.id) { continue; }
+			if (btn.clicker.id != portal.victim.id &&
+				btn.channel.id != portal.channel.id) { continue; }
 
-			let status = "denied";
-			if (await portal.handleButton(btn)) {
-				this.#portals[p] = portal;
-				status = "accepted";
+			let status;
+			switch (await portal.handleButton(btn)) {
+				case 'accept': {
+					this.#portals[p] = portal;
+					status = "accepted";
+					break;
+				}
+				case 'deny': {
+					status = "denied";
+					break;
+				}
+				case 'cancel': {
+					status = "cancelled";
+					break;
+				}
+				case 'error': {
+					console.error("ERROR: Unknown button clicked!");
+					status = "errored";
+					break;
+				}
 			}
 			delete this.#pendingPortals[p];
+			console.log("a");
 
-			console.info(`Portal request ${status}\n` +
-			            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
-			            `  Portal count:  ${Object.keys(this.#portals).length}\n`);
+			console.info(
+				`Portal request ${status}\n` +
+				`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+				`  Portal count:  ${Object.keys(this.#portals).length}\n`
+			);
 		}
 	}
 
@@ -171,10 +191,10 @@ module.exports = class Bot {
 			}
 
 			let victim = Bot.client.users.cache.find(u =>
-				u.username.toLowerCase() == args[0].toLowerCase() ||
+				u.id == args[0] ||
 				u.tag.toLowerCase() == args[0].toLowerCase() ||
-				u.id.toLowerCase() == args[0].toLowerCase() ||
-				u.id.toLowerCase() == args[0].toLowerCase().replace(/<@!?/, "").replace(/>+/, "")
+				u.username.toLowerCase() == args[0].toLowerCase() ||
+				u.id == args[0].replace(/<@!?/, "").replace(/>+/, "")
 			);
 
 			if (!victim) {

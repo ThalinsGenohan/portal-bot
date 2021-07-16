@@ -1,6 +1,7 @@
 const disbut = require('discord-buttons');
 
 let Bot = require("./Bot");
+const PortalUser = require('./PortalUser');
 
 const msg_open  = "```\n ```*The portal opens...*";
 const msg_close = "*The portal closes...*```\n ```";
@@ -11,10 +12,12 @@ const msg_awaiting        = "Awaiting response..."
 const msg_requestError    = "Portal request could not be sent to {0}!";
 const msg_incomingRequest = "Incoming portal request from {0}!\nDo you accept?";
 
-const msg_requestAccepted     = "Request accepted!";
-const msg_requestDenied       = "Request denied.";
-const msg_requestFromAccepted = "Request from {0} accepted!";
-const msg_requestFromDenied   = "Request from {0} denied.";
+const msg_requestAccepted      = "Request accepted!";
+const msg_requestDenied        = "Request denied.";
+const msg_requestCancelled     = "Request cancelled."
+const msg_requestFromAccepted  = "Request from {0} accepted!";
+const msg_requestFromDenied    = "Request from {0} denied.";
+const msg_requestFromCancelled = "Request from {0} cancelled."
 
 const msg_quotesNeeded   = "Quote text (prefix a line with `> `) to send through the portal.";
 const msg_noQuotesNeeded = "Because this is direct through DMs, you do not need to prefix your messages.";
@@ -32,25 +35,32 @@ module.exports = class Portal {
 	#anon;
 	#direct;
 	#requestMsg;
+	#dmRequestMsg;
 
-	constructor(sender, victim, channel, anon) {
+	constructor(sender, channel, anon) {
 		this.#sender = sender;
-		this.#victim = victim;
 		this.#channel = channel;
 		this.#anon = anon;
 		this.#direct = channel.type == 'dm';
 	}
 
 	static async create(sender, victim, channel, anon = false) {
-		let portal = new Portal(sender, victim, channel, anon);
+		let creatingVictim = PortalUser.create(victim);
 
-		portal.#victimChannel = await victim.createDM();
+		let portal = new Portal(sender, channel, anon);
+
+		portal.#victim = await creatingVictim;
+		portal.#victimChannel = portal.#victim.dmChannel;
 
 		let success = portal.#victim && portal.#channel && portal.#victimChannel;
 		if (success) {
 			portal.#requestMsg = await portal.#channel.send(
-				`${msg_requestSent.format(portal.#victim.username)}\n` +
-				msg_awaiting
+				msg_requestSent.format(portal.#victim.username) + "\n" +
+				msg_awaiting,
+				new disbut.MessageButton()
+					.setStyle('red')
+					.setLabel("Cancel")
+					.setID(`${channel.id}-cancel`)
 			);
 		} else {
 			portal.#channel.send(msg_requestError.format(portal.#victim.username));
@@ -68,7 +78,7 @@ module.exports = class Portal {
 			.setID(`${victim.id}-no`),
 		]);
 
-		await portal.#victim.send(
+		portal.#dmRequestMsg = await portal.#victim.send(
 			msg_incomingRequest.format(portal.#anon
 				? "anonymous"
 				: portal.#sender.username
@@ -91,36 +101,45 @@ module.exports = class Portal {
 		this.#victimChannel = undefined;
 		this.#direct = undefined;
 		this.#requestMsg = undefined;
+		this.#dmRequestMsg = undefined;
 	}
 
 	async handleButton(btn) {
 		btn.reply.defer();
-		btn.message.delete();
+		console.log(this.#dmRequestMsg);
 
+		let status = 'error';
 		if (btn.id.match(/.*-yes$/)) {
 			this.#victim.send(msg_requestFromAccepted.format(this.#anon ? "anonymous" : this.#sender.username));
-			this.#requestMsg.edit(
-				`${msg_requestSent.format(this.#victim.username)}\n` +
-				`${msg_requestAccepted}\n` +
+			this.#channel.send(
+				msg_requestSent.format(this.#victim.username) + "\n" +
+				msg_requestAccepted + "\n" +
 				(this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded)
 			);
 
 			this.#victim.send(msg_open);
 			this.#channel.send(msg_open);
 
-			return true;
-		}
-		if (btn.id.match(/.*-no$/)) {
+			status = 'accept';
+		} else if (btn.id.match(/.*-no$/)) {
 			this.#victim.send(msg_requestFromDenied.format(this.#anon ? "anonymous" : this.#sender.username));
-			this.#requestMsg.edit(
-				`${msg_requestSent.format(this.#victim.username)}\n` +
+			this.#channel.send(
+				msg_requestSent.format(this.#victim.username) + "\n" +
 				msg_requestDenied
 			);
-			return false;
+			status = 'deny';
+		} else if (btn.id.match(/.*-cancel$/)) {
+			this.#victim.send(msg_requestFromCancelled.format(this.#anon ? "anonymous" : this.#sender.username));
+			this.#channel.send(
+				msg_requestSent.format(this.#victim.username) + "\n" +
+				msg_requestCancelled
+			);
+			status = 'cancel';
 		}
+		this.#requestMsg.delete();
+		this.#dmRequestMsg.delete();
 
-		console.error("ERROR: Unknown button clicked!");
-		return false;
+		return status;
 	}
 
 	handleMessage(msg) {

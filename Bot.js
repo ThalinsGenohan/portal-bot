@@ -130,7 +130,6 @@ module.exports = class Bot {
 		if (!interaction.isButton()) return;
 
 		let btn = interaction.component;
-		console.log(`Button ${btn.customId} was clicked by ${interaction.user.id}!`);
 
 		for (const p in this.#pendingPortals) {
 			if (!Object.hasOwnProperty.call(this.#pendingPortals, p)) { continue; }

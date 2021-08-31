@@ -251,23 +251,23 @@ module.exports = class Bot {
 
 		open: async function(msg, args) {
 			if (this.#portals[msg.channel.id]) {
-				msg.reply("there's already a portal open here!");
+				msg.reply("There's already a portal open here!");
 				return;
 			}
 			if (this.#pendingPortals[msg.channel.id]) {
-				msg.reply("there's already a portal request open here!");
+				msg.reply("There's already a portal request open here!");
 				return;
 			}
 
 			let victim = await PortalUser.create(this.getUser(args[0]));
 
 			if (!victim) {
-				msg.reply("user not found!");
+				msg.reply("User not found!");
 				return;
 			}
 
 			if (victim.bot) {
-				msg.reply("can't open a portal for a bot!");
+				msg.reply("Can't open a portal for a bot!");
 				return;
 			}
 
@@ -292,7 +292,7 @@ module.exports = class Bot {
 
 					return;
 				}
-				msg.reply("there is no portal bound to this channel!");
+				msg.reply("There is no portal bound to this channel!");
 			}
 		},
 

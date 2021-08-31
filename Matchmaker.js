@@ -69,6 +69,9 @@ module.exports = class Matchmaker {
 				const victim = this.#victims[v];
 				// TODO: Compare preferences
 				Bot.instance.createPortal(user, victim, user.channel, false);
+
+				this.removeUser(user);
+				this.removeUser(victim);
 			}
 		}
 	}

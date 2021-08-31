@@ -9,7 +9,10 @@ const msg_help = "**Usage:**\n" +
 	"`" + config.prefix + "open <\"victim\"> [anonymous]`: Request a portal connection\n" +
 	"    `\"victim\"`: The user that is partway through the portal. Username, ID, or ping may be used for this.\n" +
 	"    `anonymous`: Optionally type `true` here to make your portal request anonymous.\n" +
-	"`" + config.prefix + "close`: End a portal connection";
+	"`" + config.prefix + "close`: End a portal connection\n" +
+	"`" + config.prefix + "queue [victim]`: Queues the user up for matchmaking.\n" +
+	"    `victim`: If \"victim\", then user will be queued as a victim.\n" +
+	"`" + config.prefix + "unqueue`: Removes user from queue";
 
 module.exports = class Bot {
 	static #client = new Discord.Client({intents: [

@@ -83,6 +83,8 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 			const portal = this.#portals[p];
+			if (portal.closing) continue;
+
 			portal.handleMessage(msg);
 		}
 	}
@@ -107,6 +109,8 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 			const portal = this.#portals[p];
+			if (portal.closing) continue;
+
 			if (oldMsg.channel.id == portal.channel.id || oldMsg.channel.id == portal.victimChannel.id) {
 				portal.handleEdit(oldMsg, newMsg);
 			}
@@ -120,6 +124,8 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 			const portal = this.#portals[p];
+			if (portal.closing) continue;
+
 			if (msg.channel.id == portal.channel.id || msg.channel.id == portal.victimChannel.id) {
 				portal.handleDelete(msg);
 			}
@@ -177,6 +183,8 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 			const portal = this.#portals[p];
+			if (portal.closing) continue;
+
 			if (newThread.id == portal.channel.id) {
 				await portal.destroy({ timeout: true });
 				delete this.#portals[p];
@@ -189,6 +197,8 @@ module.exports = class Bot {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 			const portal = this.#portals[p];
+			if (portal.closing) continue;
+
 			if (thread.id == portal.channel.id) {
 				await portal.destroy({ deleted: true });
 				delete this.#portals[p];
@@ -279,6 +289,7 @@ module.exports = class Bot {
 				if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
 				const portal = this.#portals[p];
+				if (portal.closing) continue;
 
 				if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
 					await portal.destroy();

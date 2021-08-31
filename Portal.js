@@ -32,6 +32,8 @@ module.exports = class Portal {
 	get channel() { return this.#channel; }
 	#victimChannel;
 	get victimChannel() { return this.#victimChannel; }
+	#closing;
+	get closing() { return this.#closing; }
 
 	#anon;
 	#direct;
@@ -42,6 +44,7 @@ module.exports = class Portal {
 		this.#sender = sender;
 		this.#victim = victim;
 		this.#channel = channel;
+		this.#closing = false;
 		this.#anon = anon;
 		this.#direct = channel.type == 'DM';
 	}
@@ -93,6 +96,8 @@ module.exports = class Portal {
 	}
 
 	async destroy(options = { shutdown: false, timeout: false, deleted: false } ) {
+		this.#closing = true;
+
 		if (options.timeout) {
 			await this.#victim.send(msg_close + msg_divider + msg_timeout);
 

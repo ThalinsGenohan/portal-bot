@@ -26,14 +26,11 @@ module.exports = class Matchmaker {
 	static async create() {
 		let matchmaker = new Matchmaker();
 
-		console.log("Bot instance: " + Bot.instance);
-
 		return matchmaker;
 	}
 
 	async addUser(user, channel, victim) {
 		if (this.#users[user.id] || this.#victims[user.id]) { return 'dupe'; }
-		console.log(user.username + ": " + victim);
 
 		let mmUser = await MatchmakingUser.create(user, victim ? undefined : channel);
 		mmUser.status = 'looking';
@@ -71,9 +68,7 @@ module.exports = class Matchmaker {
 
 				const victim = this.#victims[v];
 				// TODO: Compare preferences
-				console.log(user);
 				Bot.instance.createPortal(user, victim, user.channel, false);
-				console.log("b");
 			}
 		}
 	}

@@ -1,8 +1,9 @@
-const fs = require("fs");
 const Discord = require('discord.js');
 let Portal;
+let Matchmaker;
 
 const config = require("./config.json");
+const PortalUser = require("./PortalUser");
 
 const msg_help = "**Usage:**\n" +
 	"`" + config.prefix + "bind <\"victim\"> [anonymous]`: Request a portal connection\n" +
@@ -11,15 +12,28 @@ const msg_help = "**Usage:**\n" +
 	"`" + config.prefix + "unbind`: End a portal connection";
 
 module.exports = class Bot {
-	static #client = new Discord.Client();
+	static #client = new Discord.Client({intents: [
+		Discord.Intents.FLAGS.GUILDS,
+		Discord.Intents.FLAGS.GUILD_MEMBERS,
+		Discord.Intents.FLAGS.GUILD_MESSAGES,
+		Discord.Intents.FLAGS.GUILD_MESSAGE_TYPING,
+		Discord.Intents.FLAGS.DIRECT_MESSAGES,
+		Discord.Intents.FLAGS.DIRECT_MESSAGE_TYPING
+	]});
 	static get client() { return Bot.#client; }
 	#portals = {};
 	#pendingPortals = {};
+	#matchmaker;
+
+	static #instance;
+	static get instance() { return Bot.#instance; }
 
 	constructor() {
 	}
 
 	static async create() {
+		let creatingMatchmaker = Matchmaker.create();
+
 		let bot = new Bot();
 
 		Bot.client.on('ready', async () => {
@@ -33,24 +47,27 @@ module.exports = class Bot {
 
 		process.on('SIGINT', bot.shutdown.bind(bot));
 
-		Bot.client.on('message', bot.handleMessage.bind(bot));
+		Bot.client.on('messageCreate', bot.handleMessage.bind(bot));
 		Bot.client.on('messageUpdate', bot.handleEdit.bind(bot));
 		Bot.client.on('messageDelete', bot.handleDelete.bind(bot));
-		Bot.client.on('clickButton', bot.handleButton.bind(bot));
+		Bot.client.on('interactionCreate', bot.handleButton.bind(bot));
+		Bot.client.on('threadUpdate', bot.handleThreadUpdate.bind(bot));
+		Bot.client.on('threadDelete', bot.handleThreadDelete.bind(bot));
 
 		console.info("Logging in...");
 		Bot.client.login(config.token);
 
-		require('discord-buttons')(Bot.client);
+		bot.#matchmaker = await creatingMatchmaker;
 
-		return bot;
+		Bot.#instance = bot;
+		return Bot.#instance;
 	}
 
 	async shutdown() {
 		for (const p in this.#portals) {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
-			await this.#portals[p].destroy(true);
+			await this.#portals[p].destroy({ shutdown: true });
 		}
 
 		Bot.client.destroy();
@@ -109,13 +126,18 @@ module.exports = class Bot {
 		}
 	}
 
-	async handleButton(btn) {
+	async handleButton(interaction) {
+		if (!interaction.isButton()) return;
+
+		let btn = interaction.component;
+		console.log(`Button ${btn.customId} was clicked by ${interaction.user.id}!`);
+
 		for (const p in this.#pendingPortals) {
 			if (!Object.hasOwnProperty.call(this.#pendingPortals, p)) { continue; }
 
 			const portal = this.#pendingPortals[p];
-			if (btn.clicker.id != portal.victim.id &&
-				btn.channel.id != portal.channel.id) { continue; }
+			if (interaction.user.id != portal.victim.id &&
+				interaction.channelId != portal.channel.id) { continue; }
 
 			let status;
 			switch (await portal.handleButton(btn)) {
@@ -148,6 +170,54 @@ module.exports = class Bot {
 		}
 	}
 
+	async handleThreadUpdate(oldThread, newThread) {
+		if (!newThread.archived ||
+			newThread.lastMessage.content == "*The portal closes...*\nThe portal thread was archived.") { return; }
+
+		for (const p in this.#portals) {
+			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+			const portal = this.#portals[p];
+			if (newThread.id == portal.channel.id) {
+				portal.destroy({ timeout: true });
+				delete this.#portals[p];
+			}
+		}
+	}
+
+	async handleThreadDelete(thread) {
+		for (const p in this.#portals) {
+			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+			const portal = this.#portals[p];
+			if (thread.id == portal.channel.id) {
+				portal.destroy({ deleted: true });
+				delete this.#portals[p];
+			}
+		}
+	}
+
+	getUser(userInfo) {
+		return Bot.client.users.cache.find(u =>
+			u.id == userInfo ||
+			u.tag.toLowerCase() == userInfo.toLowerCase() ||
+			u.username.toLowerCase() == userInfo.toLowerCase() ||
+			u.id == userInfo.replace(/<@!?/, "").replace(/>+/, "")
+		);
+	}
+
+	async createPortal(user, victim, channel, anon = false) {
+		let portal = await Portal.create(user, victim, channel, anon);
+		if (!portal) {
+			return;
+		} else {
+			this.#pendingPortals[channel.id] = portal;
+			console.info(`New portal request opened\n` +
+						`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+						`  Portal count:  ${Object.keys(this.#portals).length}\n`);
+		}
+	}
+
 	#commands = {
 		help: async function(msg) {
 			msg.channel.send(msg_help);
@@ -156,20 +226,21 @@ module.exports = class Bot {
 		status: async function(msg) {
 			let sent = await msg.channel.send("Checking status...");
 
-			let embed = new Discord.MessageEmbed()
+			let statusEmbed = new Discord.MessageEmbed()
 				.setTitle("Status")
 				.setColor(0x000000)
 				.setTimestamp(Date.now())
 				.setAuthor(Bot.client.user.username, "", "https://github.com/ThalinsGenohan/portal-bot")
 				.addFields([
-					{ name: "Heartbeat", value: `${Bot.client.ws.ping}ms` },
-					{ name: "Latency", value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },
-					{ name: "Portal Requests", value: Object.keys(this.#pendingPortals).length },
-					{ name: "Active Portals", value: Object.keys(this.#portals).length },
+					{ name: "Heartbeat",         value: `${Bot.client.ws.ping}ms` },
+					{ name: "Latency",           value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },
+					{ name: "Portal Requests",   value: Object.keys(this.#pendingPortals).length.toString() },
+					{ name: "Active Portals",    value: Object.keys(this.#portals).length.toString() },
+					{ name: "Matchmaking Users", value: this.#matchmaker.totalCount.toString() },
 				])
 				.setFooter("Created by Thalins#0502", Bot.client.user.displayAvatarURL());
 
-			sent.edit("", embed);
+			sent.edit({ content: null, embeds: [statusEmbed] });
 		},
 
 		stop: async function(msg) {
@@ -189,12 +260,7 @@ module.exports = class Bot {
 				return;
 			}
 
-			let victim = Bot.client.users.cache.find(u =>
-				u.id == args[0] ||
-				u.tag.toLowerCase() == args[0].toLowerCase() ||
-				u.username.toLowerCase() == args[0].toLowerCase() ||
-				u.id == args[0].replace(/<@!?/, "").replace(/>+/, "")
-			);
+			let victim = await PortalUser.create(this.getUser(args[0]));
 
 			if (!victim) {
 				msg.reply("user not found!");
@@ -206,15 +272,7 @@ module.exports = class Bot {
 				return;
 			}
 
-			let portal = await Portal.create(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true');
-			if (!portal) {
-				return;
-			} else {
-				this.#pendingPortals[msg.channel.id] = portal;
-				console.info(`New portal request opened\n` +
-				            `  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
-				            `  Portal count:  ${Object.keys(this.#portals).length}\n`);
-			}
+			this.createPortal(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true')
 		},
 
 		unbind: async function(msg) {
@@ -238,7 +296,45 @@ module.exports = class Bot {
 				msg.reply("there is no portal bound to this channel!");
 			}
 		},
+
+		queue: async function(msg, args) {
+			switch (this.#matchmaker.addUser(msg.author, msg.channel, args[0]?.toLowerCase() == 'true')) {
+				case 'dupe': {
+					msg.reply("You're already queued!");
+					break;
+				}
+				case 'success': {
+					msg.reply("You've been added to the matchmaking queue!");
+					break;
+				}
+			}
+
+		},
+
+		unqueue: async function(msg) {
+			switch (this.#matchmaker.removeUser(msg.author)) {
+				case 'noUser': {
+					msg.reply("You're not queued!");
+					break;
+				}
+				case 'success': {
+					msg.reply("You've been removed the matchmaking queue!");
+					break;
+				}
+			}
+		},
+
+		testthread: async function(msg) {
+			let thread = await msg.channel.threads.create({
+				name: 'Test Thread',
+				autoArchiveDuration: 1440,
+				reason: "Testing threads",
+			});
+
+			thread.send("Hello, this is a test thread!");
+		}
 	};
 }
 
 Portal = require("./Portal");
+Matchmaker = require("./Matchmaker");

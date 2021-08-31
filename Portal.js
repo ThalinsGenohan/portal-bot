@@ -43,7 +43,7 @@ module.exports = class Portal {
 		this.#victim = victim;
 		this.#channel = channel;
 		this.#anon = anon;
-		this.#direct = channel.type == 'dm';
+		this.#direct = channel.type == 'DM';
 	}
 
 	static async create(sender, victim, channel, anon = false) {
@@ -94,18 +94,18 @@ module.exports = class Portal {
 
 	async destroy(options = { shutdown: false, timeout: false, deleted: false } ) {
 		if (options.timeout) {
-			this.#victim.send(msg_close + msg_divider + msg_timeout);
+			await this.#victim.send(msg_close + msg_divider + msg_timeout);
 
-			this.#channel.setArchived(false);
-			this.#channel.send(msg_close + "\n" + msg_timeout);
+			await this.#channel.setArchived(false);
+			await this.#channel.send(msg_close + "\n" + msg_timeout);
 		} else if (options.deleted) {
-			this.#victim.send(msg_close + msg_divider + msg_delete);
-			this.#channel.parent.send(msg_delete);
+			await this.#victim.send(msg_close + msg_divider + msg_delete);
+			await this.#channel.parent.send(msg_delete);
 		} else {
-			this.#victim.send(msg_close + msg_divider + (options.shutdown ? msg_shutdown : ""));
-			this.#channel.send(msg_close + (this.#direct ? msg_divider : "") + (options.shutdown ? "\n" + msg_shutdown : ""));
+			await this.#victim.send(msg_close + msg_divider + (options.shutdown ? msg_shutdown : ""));
+			await this.#channel.send(msg_close + (this.#direct ? msg_divider : "") + (options.shutdown ? "\n" + msg_shutdown : ""));
 		}
-		if (!this.#direct && !options.deleted) { this.#channel.setArchived(true); }
+		if (!this.#direct && !options.deleted) { await this.#channel.setArchived(true); }
 
 		this.#victim.status = 'idle';
 
@@ -121,14 +121,14 @@ module.exports = class Portal {
 	async handleButton(btn) {
 		let status = 'error';
 		if (btn.customId.match(/.*-yes$/)) {
-			this.#victim.send(msg_requestFromAccepted.format(this.#anon ? "anonymous" : this.#sender.username));
-			this.#channel.send(
+			await this.#victim.send(msg_requestFromAccepted.format(this.#anon ? "anonymous" : this.#sender.username));
+			await this.#channel.send(
 				msg_requestSent.format(this.#victim.username) + "\n" +
 				msg_requestAccepted + "\n" +
 				(this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded)
 			);
 
-			this.#victim.send(msg_divider + msg_open);
+			await this.#victim.send(msg_divider + msg_open);
 			if (!this.#direct) {
 				this.#channel = await this.#channel.threads.create({
 					name: `Portal to ${this.#victim.username}`,
@@ -136,13 +136,13 @@ module.exports = class Portal {
 					reason: "Opened portal",
 				});
 			}
-			this.#channel.send((this.#direct ? msg_divider : "") + msg_open);
+			await this.#channel.send((this.#direct ? msg_divider : "") + msg_open);
 
 			status = 'accept';
 			this.#victim.status = 'connected';
 		} else if (btn.customId.match(/.*-no$/)) {
-			this.#victim.send(msg_requestFromDenied.format(this.#anon ? "anonymous" : this.#sender.username));
-			this.#channel.send(
+			await this.#victim.send(msg_requestFromDenied.format(this.#anon ? "anonymous" : this.#sender.username));
+			await this.#channel.send(
 				msg_requestSent.format(this.#victim.username) + "\n" +
 				msg_requestDenied
 			);
@@ -150,8 +150,8 @@ module.exports = class Portal {
 			status = 'deny';
 			this.#victim.status = 'idle';
 		} else if (btn.customId.match(/.*-cancel$/)) {
-			this.#victim.send(msg_requestFromCancelled.format(this.#anon ? "anonymous" : this.#sender.username));
-			this.#channel.send(
+			await this.#victim.send(msg_requestFromCancelled.format(this.#anon ? "anonymous" : this.#sender.username));
+			await this.#channel.send(
 				msg_requestSent.format(this.#victim.username) + "\n" +
 				msg_requestCancelled
 			);

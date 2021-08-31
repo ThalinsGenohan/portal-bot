@@ -16,16 +16,16 @@ module.exports = class PortalUser {
 	// looking: user is currently queued for matchmaking
 	status = 'idle';
 
-	constructor(user) {
+	constructor(user, channel, dmChannel) {
 		this.#user = user;
+		this.#channel = channel;
+		this.#dmChannel = dmChannel;
 	}
 
-	static async create(user) {
+	static async create(user, channel = undefined) {
 		let creatingDM = user.createDM();
 
-		let portalUser = new PortalUser(user);
-
-		portalUser.#dmChannel = await creatingDM;
+		let portalUser = new PortalUser(user, (channel == undefined) ? await creatingDM : channel, await creatingDM);
 
 		return portalUser;
 	}

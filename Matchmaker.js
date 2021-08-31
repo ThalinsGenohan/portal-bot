@@ -2,15 +2,12 @@ const Bot = require("./Bot");
 const PortalUser = require("./PortalUser");
 
 class MatchmakingUser extends PortalUser {
-	#channel;
-	get channel() { return this.#channel; }
+	constructor(user, channel, dmChannel) { super(user, channel, dmChannel); }
 
-	constructor(user, channel) { super(user);
-		this.#channel = channel;
-	}
+	static async create(user, channel = undefined) {
+		let creatingDM = user.createDM();
 
-	static async create(user, channel) {
-		let mmUser = new MatchmakingUser(user, channel);
+		let mmUser = new MatchmakingUser(user, (channel == undefined) ? await creatingDM : channel, await creatingDM);
 
 		return mmUser;
 	}
@@ -34,18 +31,17 @@ module.exports = class Matchmaker {
 		return matchmaker;
 	}
 
-	addUser(user, channel, victim) {
+	async addUser(user, channel, victim) {
 		if (this.#users[user.id] || this.#victims[user.id]) { return 'dupe'; }
 		console.log(user.username + ": " + victim);
 
-		let mmUser = MatchmakingUser.create(user, channel);
+		let mmUser = await MatchmakingUser.create(user, victim ? undefined : channel);
 		mmUser.status = 'looking';
 
 		if (!victim) { this.#users[user.id] = mmUser; }
 		else { this.#victims[user.id] = mmUser; }
 
-		this.matchUsers();
-
+		if (victim) { return 'success-victim'; }
 		return 'success';
 	}
 
@@ -64,8 +60,7 @@ module.exports = class Matchmaker {
 	}
 
 	matchUsers() {
-		if (Object.keys(this.#users) == 0) { return; }
-		if (Object.keys(this.#victims) == 0) { return; }
+		if (Object.keys(this.#users) == 0 || Object.keys(this.#victims) == 0) { return; }
 
 		for (const u in this.#users) {
 			if (!Object.hasOwnProperty.call(this.#users, u)) { continue; }
@@ -75,8 +70,8 @@ module.exports = class Matchmaker {
 				if (!Object.hasOwnProperty.call(this.#victims, v)) { continue; }
 
 				const victim = this.#victims[v];
-				console.log("a");
 				// TODO: Compare preferences
+				console.log(user);
 				Bot.instance.createPortal(user, victim, user.channel, false);
 				console.log("b");
 			}

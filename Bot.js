@@ -6,10 +6,10 @@ const config = require("./config.json");
 const PortalUser = require("./PortalUser");
 
 const msg_help = "**Usage:**\n" +
-	"`" + config.prefix + "bind <\"victim\"> [anonymous]`: Request a portal connection\n" +
+	"`" + config.prefix + "open <\"victim\"> [anonymous]`: Request a portal connection\n" +
 	"    `\"victim\"`: The user that is partway through the portal. Username, ID, or ping may be used for this.\n" +
 	"    `anonymous`: Optionally type `true` here to make your portal request anonymous.\n" +
-	"`" + config.prefix + "unbind`: End a portal connection";
+	"`" + config.prefix + "close`: End a portal connection";
 
 module.exports = class Bot {
 	static #client = new Discord.Client({intents: [
@@ -178,7 +178,7 @@ module.exports = class Bot {
 
 			const portal = this.#portals[p];
 			if (newThread.id == portal.channel.id) {
-				portal.destroy({ timeout: true });
+				await portal.destroy({ timeout: true });
 				delete this.#portals[p];
 			}
 		}
@@ -190,7 +190,7 @@ module.exports = class Bot {
 
 			const portal = this.#portals[p];
 			if (thread.id == portal.channel.id) {
-				portal.destroy({ deleted: true });
+				await portal.destroy({ deleted: true });
 				delete this.#portals[p];
 			}
 		}
@@ -249,7 +249,7 @@ module.exports = class Bot {
 			process.exit();
 		},
 
-		bind: async function(msg, args) {
+		open: async function(msg, args) {
 			if (this.#portals[msg.channel.id]) {
 				msg.reply("there's already a portal open here!");
 				return;
@@ -274,7 +274,7 @@ module.exports = class Bot {
 			this.createPortal(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true')
 		},
 
-		unbind: async function(msg) {
+		close: async function(msg) {
 			for (const p in this.#portals) {
 				if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
@@ -297,13 +297,19 @@ module.exports = class Bot {
 		},
 
 		queue: async function(msg, args) {
-			switch (this.#matchmaker.addUser(msg.author, msg.channel, args[0]?.toLowerCase() == 'true')) {
+			switch (await this.#matchmaker.addUser(msg.author, msg.channel, args[0]?.toLowerCase() == 'victim')) {
 				case 'dupe': {
 					msg.reply("You're already queued!");
 					break;
 				}
 				case 'success': {
 					msg.reply("You've been added to the matchmaking queue!");
+					this.#matchmaker.matchUsers();
+					break;
+				}
+				case 'success-victim': {
+					msg.reply("You've been added to the matchmaking queue as a victim!");
+					this.#matchmaker.matchUsers();
 					break;
 				}
 			}
@@ -322,16 +328,6 @@ module.exports = class Bot {
 				}
 			}
 		},
-
-		testthread: async function(msg) {
-			let thread = await msg.channel.threads.create({
-				name: 'Test Thread',
-				autoArchiveDuration: 1440,
-				reason: "Testing threads",
-			});
-
-			thread.send("Hello, this is a test thread!");
-		}
 	};
 }
 

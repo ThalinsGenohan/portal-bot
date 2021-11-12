@@ -389,4 +389,4 @@ module.exports = class Bot {
 }
 
 Portal = require("./Portal");
-Matchmaker = require("./Matchmaker");
+Matchmaker = require("./Matchmaker").Matchmaker;

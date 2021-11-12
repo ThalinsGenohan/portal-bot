@@ -1,9 +1,14 @@
 const Bot = require("./Bot");
 const PortalUser = require("./PortalUser");
 const fs = require('fs/promises');
+require('json5/lib/register');
+
+const userPreferences = require("./userPrefs.json5");
+
+const msg_initPrefs = "You must set your preferences before queuing!";
 
 class MatchmakingUser extends PortalUser {
-	preferences = {
+	static defaultPrefs = {
 		mouth: {
 			yours:  false,
 			others: false,
@@ -24,8 +29,13 @@ class MatchmakingUser extends PortalUser {
 			yours:  false,
 			others: false,
 		},
-		herm: false,
+		herm: {
+			yours:  false,
+			others: false,
+		},
 	};
+
+	preferences = undefined;
 
 	constructor(user, channel, dmChannel) { super(user, channel, dmChannel); }
 
@@ -34,20 +44,42 @@ class MatchmakingUser extends PortalUser {
 
 		let mmUser = new MatchmakingUser(user, (channel == undefined) ? await creatingDM : channel, await creatingDM);
 
+		mmUser.preferences = mmUser.getPreferences();
+		if (mmUser.preferences == undefined) {
+			mmUser.editPreferences();
+		}
+
 		return mmUser;
+	}
+
+	getPreferences() {
+		for (const p in userPreferences) {
+			if (!Object.hasOwnProperty.call(userPreferences, p)) { continue; }
+			if (p == this.id) { return userPreferences[p]; }
+		}
+		this.dmChannel.send(msg_initPrefs);
+		return undefined;
+	}
+
+	editPreferences() {
+		this.dmChannel.send("Not yet finished.");
 	}
 
 	savePreferences() {
 		let prefCode = 0;
 
-		let i = 0;
+		let i = Object.keys.length - 1;
 		for (const p in this.preferences) {
 			if (!Object.hasOwnProperty.call(this.preferences, p)) { continue; }
 
 			const pref = this.preferences[p];
-			prefCode += 1 << i;
+			if (pref.yours)  prefCode += 1 << i;
+			i--;
+			if (pref.others) prefCode += 1 << i;
+			i--;
 		}
-		console.log(prefCode);
+		console.log(this.preferences);
+		console.log(prefCode.toString(16).padStart(3, '0'));
 	}
 
 	loadPreferences() {
@@ -55,7 +87,8 @@ class MatchmakingUser extends PortalUser {
 	}
 }
 
-module.exports = class Matchmaker {
+module.exports = {
+	Matchmaker: class Matchmaker {
 	#users = {};
 	get users() { return this.#users; }
 	#victims = {};
@@ -117,4 +150,6 @@ module.exports = class Matchmaker {
 			}
 		}
 	}
+},
+MatchmakingUser: MatchmakingUser,
 }

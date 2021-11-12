@@ -209,18 +209,17 @@ module.exports = class Bot {
 	}
 
 	async handleThreadUpdate(oldThread, newThread) {
-		if (!newThread.archived ||
-			newThread.lastMessage.content == "*The portal closes...*\nThe portal thread was archived.") { return; }
+		if (newThread.archived) {
+			for (const p in this.#portals) {
+				if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
-		for (const p in this.#portals) {
-			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+				const portal = this.#portals[p];
+				if (portal.closing) continue;
 
-			const portal = this.#portals[p];
-			if (portal.closing) continue;
-
-			if (newThread.id == portal.channel.id) {
-				await portal.destroy({ timeout: true });
-				delete this.#portals[p];
+				if (newThread.id == portal.channel.id) {
+					await portal.destroy({ timeout: true });
+					delete this.#portals[p];
+				}
 			}
 		}
 	}

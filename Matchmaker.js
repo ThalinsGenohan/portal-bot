@@ -1,7 +1,32 @@
 const Bot = require("./Bot");
 const PortalUser = require("./PortalUser");
+const fs = require('fs/promises');
 
 class MatchmakingUser extends PortalUser {
+	preferences = {
+		mouth: {
+			yours:  false,
+			others: false,
+		},
+		boobs: {
+			yours:  false,
+			others: false,
+		},
+		penis: {
+			yours:  false,
+			others: false,
+		},
+		vagina: {
+			yours:  false,
+			others: false,
+		},
+		anus: {
+			yours:  false,
+			others: false,
+		},
+		herm: false,
+	};
+
 	constructor(user, channel, dmChannel) { super(user, channel, dmChannel); }
 
 	static async create(user, channel = undefined) {
@@ -10,6 +35,23 @@ class MatchmakingUser extends PortalUser {
 		let mmUser = new MatchmakingUser(user, (channel == undefined) ? await creatingDM : channel, await creatingDM);
 
 		return mmUser;
+	}
+
+	savePreferences() {
+		let prefCode = 0;
+
+		let i = 0;
+		for (const p in this.preferences) {
+			if (!Object.hasOwnProperty.call(this.preferences, p)) { continue; }
+
+			const pref = this.preferences[p];
+			prefCode += 1 << i;
+		}
+		console.log(prefCode);
+	}
+
+	loadPreferences() {
+
 	}
 }
 

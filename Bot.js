@@ -12,7 +12,9 @@ const msg_help = "**Usage:**\n" +
 	"`" + config.prefix + "close`: End a portal connection\n" +
 	"`" + config.prefix + "queue [victim]`: Queues the user up for matchmaking.\n" +
 	"    `victim`: If \"victim\", then user will be queued as a victim.\n" +
-	"`" + config.prefix + "unqueue`: Removes user from queue";
+	"    [WORK IN PROGRESS]\n" +
+	"`" + config.prefix + "unqueue`: Removes user from queue\n" +
+	"    [WORK IN PROGRESS]\n";
 
 module.exports = class Bot {
 	static #client = new Client({intents: [

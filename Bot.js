@@ -1,4 +1,4 @@
-const Discord = require('discord.js');
+const { Client, Intents, MessageEmbed } = require('discord.js');
 let Portal;
 let Matchmaker;
 
@@ -15,13 +15,13 @@ const msg_help = "**Usage:**\n" +
 	"`" + config.prefix + "unqueue`: Removes user from queue";
 
 module.exports = class Bot {
-	static #client = new Discord.Client({intents: [
-		Discord.Intents.FLAGS.GUILDS,
-		Discord.Intents.FLAGS.GUILD_MEMBERS,
-		Discord.Intents.FLAGS.GUILD_MESSAGES,
-		Discord.Intents.FLAGS.GUILD_MESSAGE_TYPING,
-		Discord.Intents.FLAGS.DIRECT_MESSAGES,
-		Discord.Intents.FLAGS.DIRECT_MESSAGE_TYPING
+	static #client = new Client({intents: [
+		Intents.FLAGS.GUILDS,
+		Intents.FLAGS.GUILD_MEMBERS,
+		Intents.FLAGS.GUILD_MESSAGES,
+		Intents.FLAGS.GUILD_MESSAGE_TYPING,
+		Intents.FLAGS.DIRECT_MESSAGES,
+		Intents.FLAGS.DIRECT_MESSAGE_TYPING
 	]});
 	static get client() { return Bot.#client; }
 	#portals = {};
@@ -67,11 +67,15 @@ module.exports = class Bot {
 	}
 
 	async shutdown() {
+		let closingPortals = [];
 		for (const p in this.#portals) {
 			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
 
-			await this.#portals[p].destroy({ shutdown: true });
+			const portal = this.#portals[p];
+			if (portal.closing) continue;
+			closingPortals.push(portal.destroy({ shutdown: true }));
 		}
+		await Promise.all(closingPortals);
 
 		Bot.client.destroy();
 		process.exit();
@@ -151,24 +155,48 @@ module.exports = class Bot {
 			switch (await portal.handleButton(btn)) {
 				case 'accept': {
 					this.#portals[p] = portal;
-					status = "accepted";
+					status = 'accepted';
 					break;
 				}
 				case 'deny': {
-					status = "denied";
+					status = 'denied';
 					break;
 				}
 				case 'cancel': {
-					status = "cancelled";
+					status = 'cancelled';
 					break;
 				}
 				case 'error': {
 					console.error("ERROR: Unknown button clicked!");
-					status = "errored";
+					status = 'errored';
 					break;
 				}
 			}
 			delete this.#pendingPortals[p];
+
+			console.info(
+				`Portal request ${status}\n` +
+				`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+				`  Portal count:  ${Object.keys(this.#portals).length}\n`
+			);
+			return;
+		}
+
+		for (const p in this.#portals) {
+			if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+			const portal = this.#portals[p];
+			if (interaction.user.id != portal.victim.id &&
+				interaction.channelId != portal.channel.id) { continue; }
+
+			let status;
+			switch (await portal.handleButton(btn)) {
+				case 'close': {
+					status = 'closed';
+					this.closePortal(p);
+					break;
+				}
+			}
 
 			console.info(
 				`Portal request ${status}\n` +
@@ -230,6 +258,29 @@ module.exports = class Bot {
 		}
 	}
 
+	async closePortal(p)
+	{
+		if (!Object.hasOwnProperty.call(this.#portals, p)) {
+			console.info(`ERROR! Cannot close portal ${p}\n\tDoesn't exist!`)
+			return;
+		}
+
+		const portal = this.#portals[p];
+		if (portal.closing) {
+			console.info(`ERROR! Cannot close portal ${p}\n\tAlready closing!`)
+			return;
+		}
+
+		await portal.destroy();
+		delete this.#portals[p];
+
+		console.info(
+			`Portal closed.\n` +
+			`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
+			`  Portal count: ${Object.keys(this.#portals).length}\n`
+		);
+	}
+
 	#commands = {
 		help: async function(msg) {
 			msg.channel.send(msg_help);
@@ -238,7 +289,7 @@ module.exports = class Bot {
 		status: async function(msg) {
 			let sent = await msg.channel.send("Checking status...");
 
-			let statusEmbed = new Discord.MessageEmbed()
+			let statusEmbed = new MessageEmbed()
 				.setTitle("Status")
 				.setColor(0x000000)
 				.setTimestamp(Date.now())
@@ -295,16 +346,7 @@ module.exports = class Bot {
 				if (portal.closing) continue;
 
 				if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
-					await portal.destroy();
-					delete this.#portals[p];
-
-					console.info(
-						`Portal closed.\n` +
-						`  Request count: ${Object.keys(this.#pendingPortals).length}\n` +
-						`  Portal count: ${Object.keys(this.#portals).length}\n`
-					);
-
-					return;
+					closePortal(p);
 				}
 				msg.reply("There is no portal bound to this channel!");
 			}

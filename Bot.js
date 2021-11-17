@@ -347,7 +347,7 @@ module.exports = class Bot {
 				if (portal.closing) continue;
 
 				if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
-					closePortal(p);
+					this.closePortal(p);
 				}
 				msg.reply("There is no portal bound to this channel!");
 			}

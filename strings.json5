@@ -1,0 +1,61 @@
+{
+	divider: "```\n ```",
+
+	buttons: {
+		ids: {
+			cancel: "{0}-cancel",
+			close: "{0}-close",
+			no: "{0}-no",
+			yes: "{0}-yes",
+		},
+		
+		text: {
+			cancel: "Cancel",
+			close: "Close Portal",
+			no: "No",
+			yes: "Yes",
+		},
+	},
+
+	portal: {
+		anonymous: "anonymous",
+		close:     "*The portal closes...*",
+		deleted:   "The portal thread was deleted.",
+		open:      "*The portal opens...*",
+		shutdown:  "The bot is shutting down. Apologies for any inconvenience.",
+		timeout:   "The portal thread was archived.",
+
+		quotes: {
+			no:  "Because this is direct through DMs, you do not need to prefix your messages.",
+			yes: "Quote text (prefix a line with `> `) to send through the portal.",
+		},
+
+		request: {
+			awaiting: "Awaiting response...",
+			error:    "Portal request could not be sent to {0}!",
+			incoming: "Incoming portal request from {0}!\nDo you accept?",
+			sent:     "Portal request successfully sent to {0}!",
+
+			accepted: {
+				receive: "Request from {0} accepted!",
+				send:    "Request accepted!",
+			},
+
+			denied: {
+				receive: "Request from {0} denied.",
+				send:    "Request denied.",
+			},
+
+			cancelled: {
+				receive: "Request from {0} cancelled.",
+				send:    "Request cancelled.",
+			},
+
+		},
+
+		thread: {
+			name:   "Portal to {0}",
+			reason: "Opened portal to {0}",
+		},
+	},
+}

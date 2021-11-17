@@ -1,41 +1,8 @@
 const { MessageActionRow, MessageButton } = require("discord.js");
 let Bot = require("./Bot");
+require('json5/lib/register');
 
-const msg_divider  = "```\n ```";
-const msg_open     = "*The portal opens...*";
-const msg_close    = "*The portal closes...*";
-const msg_shutdown = "The bot is shutting down. Apologies for any inconvenience.";
-const msg_timeout  = "The portal thread was archived.";
-const msg_delete   = "The portal thread was deleted.";
-
-const msg_requestSent     = "Portal request successfully sent to {0}!";
-const msg_awaiting        = "Awaiting response...";
-const msg_requestError    = "Portal request could not be sent to {0}!";
-const msg_incomingRequest = "Incoming portal request from {0}!\nDo you accept?";
-
-const msg_requestAccepted      = "Request accepted!";
-const msg_requestDenied        = "Request denied.";
-const msg_requestCancelled     = "Request cancelled."
-const msg_requestFromAccepted  = "Request from {0} accepted!";
-const msg_requestFromDenied    = "Request from {0} denied.";
-const msg_requestFromCancelled = "Request from {0} cancelled.";
-
-const msg_quotesNeeded   = "Quote text (prefix a line with `> `) to send through the portal.";
-const msg_noQuotesNeeded = "Because this is direct through DMs, you do not need to prefix your messages.";
-
-const str_anonymous = "anonymous";
-
-const btn_str_yes    = "Yes";
-const btn_str_no     = "No";
-const btn_str_cancel = "Cancel";
-const btn_str_close  = "Close Portal";
-const btn_yes        = "{0}-yes";
-const btn_no         = "{0}-no";
-const btn_cancel     = "{0}-cancel";
-const btn_close      = "{0}-close";
-
-const thr_name       = "Portal to {0}";
-const thr_openReason = "Opened portal";
+const strings = require("./strings.json5")
 
 module.exports = class Portal {
 	#sender;
@@ -71,18 +38,18 @@ module.exports = class Portal {
 
 		let success = portal.#victim && portal.#channel && portal.#victimChannel;
 		if (!success) {
-			portal.#channel.send(msg_requestError.format(portal.#victim.username));
+			portal.#channel.send(strings.portal.request.error.format(portal.#victim.username));
 			return undefined;
 		}
 
 		let cancelButton = new MessageActionRow().addComponents(
 			new MessageButton()
 				.setStyle('DANGER')
-				.setLabel(btn_str_cancel)
-				.setCustomId(btn_cancel.format(channel.id))
+				.setLabel(strings.buttons.text.cancel)
+				.setCustomId(strings.buttons.ids.cancel.format(channel.id))
 		);
 		portal.#requestMsg = await portal.#channel.send({
-			content: msg_requestSent.format(portal.#victim.username) + '\n' + msg_awaiting,
+			content: strings.portal.request.sent.format(portal.#victim.username) + '\n' + strings.portal.request.awaiting,
 			components: [ cancelButton ]
 		});
 		portal.victim.status = 'pending';
@@ -90,18 +57,18 @@ module.exports = class Portal {
 		let buttons = new MessageActionRow().addComponents(
 			new MessageButton()
 				.setStyle('SUCCESS')
-				.setLabel(btn_str_yes)
-				.setCustomId(btn_yes.format(victim.id)),
+				.setLabel(strings.buttons.text.yes)
+				.setCustomId(strings.buttons.ids.yes.format(victim.id)),
 
 			new MessageButton()
 				.setStyle('DANGER')
-				.setLabel(btn_str_no)
-				.setCustomId(btn_no.format(victim.id)),
+				.setLabel(strings.buttons.text.no)
+				.setCustomId(strings.buttons.ids.no.format(victim.id)),
 		);
 
 		portal.#dmRequestMsg = await portal.#victim.send({
-			content: msg_incomingRequest.format(portal.#anon
-				? str_anonymous
+			content: strings.portal.request.incoming.format(portal.#anon
+				? strings.portal.anonymous
 				: portal.#sender.username
 			),
 			components: [ buttons ]
@@ -114,16 +81,16 @@ module.exports = class Portal {
 		this.#closing = true;
 
 		if (options.timeout) {
-			await this.#victim.send(msg_close + msg_divider + msg_timeout);
+			await this.#victim.send(strings.portal.close + strings.divider + strings.portal.timeout);
 
 			await this.#channel.setArchived(false);
-			await this.#channel.send(msg_close + '\n' + msg_timeout);
+			await this.#channel.send(strings.portal.close + '\n' + strings.portal.timeout);
 		} else if (options.deleted) {
-			await this.#victim.send(msg_close + msg_divider + msg_delete);
-			await this.#channel.parent.send(msg_delete);
+			await this.#victim.send(strings.portal.close + strings.divider + strings.portal.deleted);
+			await this.#channel.parent.send(strings.portal.deleted);
 		} else {
-			await this.#victim.send(msg_close + msg_divider + (options.shutdown ? msg_shutdown : ''));
-			await this.#channel.send(msg_close + (this.#direct ? msg_divider : '') + (options.shutdown ? '\n' + msg_shutdown : ''));
+			await this.#victim.send(strings.portal.close + strings.divider + (options.shutdown ? strings.portal.shutdown : ''));
+			await this.#channel.send(strings.portal.close + (this.#direct ? strings.divider : '') + (options.shutdown ? '\n' + strings.portal.shutdown : ''));
 		}
 		if (!this.#direct && !options.deleted) { await this.#channel.setArchived(true); }
 
@@ -147,48 +114,48 @@ module.exports = class Portal {
 			let closeButton = new MessageActionRow().addComponents(
 				new MessageButton()
 					.setStyle('DANGER')
-					.setLabel(btn_str_close)
-					.setCustomId(btn_close.format(this.#victim.id)),
+					.setLabel(strings.buttons.text.close)
+					.setCustomId(strings.buttons.ids.close.format(this.#victim.id)),
 			);
 
 			this.#closeButtonMsgs[0] = await this.#victim.send({
-				content: msg_requestFromAccepted.format(this.#anon ? str_anonymous : this.#sender.username),
+				content: strings.portal.request.accepted.receive.format(this.#anon ? strings.portal.anonymous : this.#sender.username),
 				components: [closeButton],
 			});
 			this.#closeButtonMsgs[1] = await this.#channel.send({
-				content: msg_requestSent.format(this.#victim.username) + '\n' +
-				         msg_requestAccepted + '\n' +
-				         (this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded),
+				content: strings.portal.request.sent.format(this.#victim.username) + '\n' +
+				         strings.portal.request.accepted.send + '\n' +
+				         (this.#direct ? strings.portal.quotes.no : strings.portal.quotes.yes),
 				components: [closeButton],
 			});
 
-			await this.#victim.send(msg_divider + msg_open);
+			await this.#victim.send(strings.divider + strings.portal.open);
 			if (!this.#direct) {
 				this.#channel = await this.#channel.threads.create({
-					name: thr_name.format(this.#victim.username),
+					name: strings.portal.thread.name.format(this.#victim.username),
 					autoArchiveDuration: 1440,
-					reason: thr_openReason,
+					reason: strings.portal.thread.reason,
 				});
 			}
 
-			await this.#channel.send((this.#direct ? msg_divider : '') + msg_open);
+			await this.#channel.send((this.#direct ? strings.divider : '') + strings.portal.open);
 
 			status = 'accept';
 			this.#victim.status = 'connected';
 		} else if (btn.customId.match(/.*-no$/)) {
-			await this.#victim.send(msg_requestFromDenied.format(this.#anon ? str_anonymous : this.#sender.username));
+			await this.#victim.send(strings.portal.request.denied.receive.format(this.#anon ? strings.portal.anonymous : this.#sender.username));
 			await this.#channel.send(
-				msg_requestSent.format(this.#victim.username) + '\n' +
-				msg_requestDenied
+				strings.portal.request.sent.format(this.#victim.username) + '\n' +
+				strings.portal.request.denied.send
 			);
 
 			status = 'deny';
 			this.#victim.status = 'idle';
 		} else if (btn.customId.match(/.*-cancel$/)) {
-			await this.#victim.send(msg_requestFromCancelled.format(this.#anon ? str_anonymous : this.#sender.username));
+			await this.#victim.send(strings.portal.request.cancelled.receive.format(this.#anon ? strings.portal.anonymous : this.#sender.username));
 			await this.#channel.send(
-				msg_requestSent.format(this.#victim.username) + '\n' +
-				msg_requestCancelled
+				strings.portal.request.sent.format(this.#victim.username) + '\n' +
+				strings.portal.request.cancelled.send
 			);
 
 			status = 'cancel';
@@ -197,13 +164,13 @@ module.exports = class Portal {
 			status = 'close';
 
 			this.#closeButtonMsgs[0].edit({
-				content: msg_requestFromAccepted.format(this.#anon ? str_anonymous : this.#sender.username),
+				content: strings.portal.request.accepted.receive.format(this.#anon ? strings.portal.anonymous : this.#sender.username),
 				components: [],
 			});
 			this.#closeButtonMsgs[1].edit({
-				content: msg_requestSent.format(this.#victim.username) + '\n' +
-				         msg_requestAccepted + '\n' +
-				         (this.#direct ? msg_noQuotesNeeded : msg_quotesNeeded),
+				content: strings.portal.request.sent.format(this.#victim.username) + '\n' +
+				         strings.portal.request.accepted.send + '\n' +
+				         (this.#direct ? strings.portal.quotes.no : strings.portal.quotes.yes),
 				components: [],
 			});
 

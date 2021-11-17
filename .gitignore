@@ -1,3 +1,4 @@
+crash-logs/
+node_modules/
 config.json
-node_modules
 userPrefs.json5

@@ -20,6 +20,7 @@ async function main() {
 
 process.on("uncaughtException", function(err){
 	let date = new Date();
-	fs.writeFileSync("crash_" + date.toLocaleString() + ".log", err + "\n" + err.stack);
+	let dateStr = `${date.getFullYear().toString().padStart(4, "0")}-${date.getMonth().toString().padStart(2, "0")}-${date.getDate().toString().padStart(2, "0")}_${date.getHours().toString().padStart(2, "0")}-${date.getMinutes().toString().padStart(2, "0")}-${date.getSeconds().toString().padStart(2, "0")}`;
+	fs.writeFileSync("crash-logs/crash_" + dateStr + ".log", err + "\n" + err.stack);
 	process.exit(1);
 });

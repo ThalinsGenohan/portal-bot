@@ -1,20 +1,10 @@
 const { Client, Intents, MessageEmbed } = require('discord.js');
+const Command = require('./Command');
 let Portal;
 let Matchmaker;
 
 const config = require("./config.json");
 const PortalUser = require("./PortalUser");
-
-const msg_help = "**Usage:**\n" +
-	"`" + config.prefix + "open <\"victim\"> [anonymous]`: Request a portal connection\n" +
-	"    `\"victim\"`: The user that is partway through the portal. Username, ID, or ping may be used for this.\n" +
-	"    `anonymous`: Optionally type `true` here to make your portal request anonymous.\n" +
-	"`" + config.prefix + "close`: End a portal connection\n" +
-	"`" + config.prefix + "queue [victim]`: Queues the user up for matchmaking.\n" +
-	"    `victim`: If \"victim\", then user will be queued as a victim.\n" +
-	"    [WORK IN PROGRESS]\n" +
-	"`" + config.prefix + "unqueue`: Removes user from queue\n" +
-	"    [WORK IN PROGRESS]\n";
 
 module.exports = class Bot {
 	static #client = new Client({intents: [
@@ -107,7 +97,18 @@ module.exports = class Bot {
 		const comm = args.shift().toLowerCase();
 
 		if (this.#commands[comm]) {
-			this.#commands[comm].bind(this)(msg, args);
+			switch (this.#commands[comm].permissions)
+			{
+				case 'all':
+					break;
+				case 'owner':
+					if (msg.author.id != config.owner) { return; }
+					break;
+				default:
+					console.error("ERROR! Unknown permissions setting.")
+					return;
+			}
+			this.#commands[comm].run.bind(this)(msg, args);
 		}
 	}
 
@@ -282,77 +283,7 @@ module.exports = class Bot {
 		);
 	}
 
-	#commands = {
-		help: async function(msg) {
-			msg.channel.send(msg_help);
-		},
-
-		status: async function(msg) {
-			let sent = await msg.channel.send("Checking status...");
-
-			let statusEmbed = new MessageEmbed()
-				.setTitle("Status")
-				.setColor(0x000000)
-				.setTimestamp(Date.now())
-				.setAuthor(Bot.client.user.username, "", "https://github.com/ThalinsGenohan/portal-bot")
-				.addFields([
-					{ name: "Heartbeat",         value: `${Bot.client.ws.ping}ms` },
-					{ name: "Latency",           value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },
-					{ name: "Portal Requests",   value: Object.keys(this.#pendingPortals).length.toString() },
-					{ name: "Active Portals",    value: Object.keys(this.#portals).length.toString() },
-					{ name: "Matchmaking Users", value: this.#matchmaker.totalCount.toString() },
-				])
-				.setFooter("Created by Thalins#0502", Bot.client.user.displayAvatarURL());
-
-			sent.edit({ content: null, embeds: [statusEmbed] });
-		},
-
-		stop: async function(msg) {
-			if (msg.author.id != config.owner) { return; }
-
-			Bot.client.destroy();
-			process.exit();
-		},
-
-		open: async function(msg, args) {
-			if (this.#portals[msg.channel.id]) {
-				msg.reply("There's already a portal open here!");
-				return;
-			}
-			if (this.#pendingPortals[msg.channel.id]) {
-				msg.reply("There's already a portal request open here!");
-				return;
-			}
-
-			let victim = await PortalUser.create(this.getUser(args[0]));
-
-			if (!victim) {
-				msg.reply("User not found!");
-				return;
-			}
-
-			if (victim.bot) {
-				msg.reply("Can't open a portal for a bot!");
-				return;
-			}
-
-			this.createPortal(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true')
-		},
-
-		close: async function(msg) {
-			for (const p in this.#portals) {
-				if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
-
-				const portal = this.#portals[p];
-				if (portal.closing) continue;
-
-				if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
-					this.closePortal(p);
-				}
-				msg.reply("There is no portal bound to this channel!");
-			}
-		},
-
+	#oldCommands = {
 		queue: async function(msg, args) {
 			switch (await this.#matchmaker.addUser(msg.author, msg.channel, args[0]?.toLowerCase() == 'victim')) {
 				case 'dupe': {
@@ -386,6 +317,101 @@ module.exports = class Bot {
 			}
 		},
 	};
+
+	#commands = {
+		help:
+			new Command("help", 'all',
+				async function(msg) {
+					let helpStr = "";
+					for (const c in this.#commands) {
+						if (Object.hasOwnProperty.call(this.#commands, c)) {
+							const comm = this.#commands[c];
+							helpStr += "\n`" + config.prefix + comm.name + "`: " + comm.helpText;
+						}
+					}
+					msg.channel.send(helpStr);
+				},
+				"Sends this message, with info about all available commands"
+			),
+		status:
+			new Command("status", 'all',
+				async function(msg) {
+					let sent = await msg.channel.send("Checking status...");
+
+					let statusEmbed = new MessageEmbed()
+						.setTitle("Status")
+						.setColor(0x000000)
+						.setTimestamp(Date.now())
+						.setAuthor(Bot.client.user.username, "", "https://github.com/ThalinsGenohan/portal-bot")
+						.addFields([
+							{ name: "Heartbeat",         value: `${Bot.client.ws.ping}ms` },
+							{ name: "Latency",           value: `${sent.createdTimestamp - msg.createdTimestamp}ms` },
+							{ name: "Portal Requests",   value: Object.keys(this.#pendingPortals).length.toString() },
+							{ name: "Active Portals",    value: Object.keys(this.#portals).length.toString() },
+							{ name: "Matchmaking Users", value: this.#matchmaker.totalCount.toString() },
+						])
+						.setFooter("Created by Thalins#0502", Bot.client.user.displayAvatarURL());
+
+					sent.edit({ content: null, embeds: [statusEmbed] });
+				},
+				"Displays the bot's status"
+			),
+		stop:
+			new Command("stop", 'owner',
+				async function(msg) {
+					if (msg.author.id != config.owner) { return; }
+
+					Bot.client.destroy();
+					process.exit();
+				},
+				"Shuts down the bot (owner use only)."
+			),
+		open:
+			new Command("open", 'all',
+				async function(msg, args) {
+					if (this.#portals[msg.channel.id]) {
+						msg.reply("There's already a portal open here!");
+						return;
+					}
+					if (this.#pendingPortals[msg.channel.id]) {
+						msg.reply("There's already a portal request open here!");
+						return;
+					}
+
+					let victim = await PortalUser.create(this.getUser(args[0]));
+
+					if (!victim) {
+						msg.reply("User not found!");
+						return;
+					}
+
+					if (victim.bot) {
+						msg.reply("Can't open a portal for a bot!");
+						return;
+					}
+
+					this.createPortal(msg.author, victim, msg.channel, args[1]?.toLowerCase() == 'true')
+				},
+				"Opens a new portal"
+			),
+		close:
+			new Command("close", 'all',
+				async function(msg) {
+					for (const p in this.#portals) {
+						if (!Object.hasOwnProperty.call(this.#portals, p)) { continue; }
+
+						const portal = this.#portals[p];
+						if (portal.closing) continue;
+
+						if (p == msg.channel.id || portal.victimChannel.id == msg.channel.id) {
+							this.closePortal(p);
+						}
+						msg.reply("There is no portal bound to this channel!");
+					}
+				},
+				"Closes the currently open portal"
+			),
+	}
 }
 
 Portal = require("./Portal");
